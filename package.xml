@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hobot_llamacpp</name>
+  <version>0.1.0</version>
+  <description>TogetheROS yolo world perception</description>
+  <maintainer email="zixi01.chen@d-robotics.cc">zixi01.chen</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <depend>rclcpp</depend>
+  <depend>dnn_node</depend>
+  <depend>cv_bridge</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>hbm_img_msgs</depend>
+  <depend>ai_msgs</depend>
+
+  <exec_depend>mipi_cam</exec_depend>
+  <exec_depend>hobot_usb_cam</exec_depend>
+  <exec_depend>hobot_image_publisher</exec_depend>
+  <exec_depend>hobot_codec</exec_depend>
+  <exec_depend>websocket</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
