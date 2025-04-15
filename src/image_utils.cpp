@@ -57,6 +57,7 @@ std::shared_ptr<DNNTensor> ImageUtils::GetBGRTensorFromBGR(
 
   cv::Mat mat_tmp;
   pad_frame.convertTo(mat_tmp, CV_32F); 
+  cv::cvtColor(mat_tmp, mat_tmp, cv::COLOR_BGR2RGB);
   mat_tmp /= 255.0;
 
   cv::Scalar mean(0.485, 0.456, 0.406);  // BGR 通道均值
