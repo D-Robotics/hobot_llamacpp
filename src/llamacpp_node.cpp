@@ -54,6 +54,8 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
   this->declare_parameter<std::string>("system_prompt", system_prompt_);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
+  this->declare_parameter<std::string>("text_msg_pub_topic_name",
+                                      text_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ros_img_sub_topic_name",
                                        ros_img_sub_topic_name_);
   this->declare_parameter<std::string>("ros_string_sub_topic_name",
@@ -68,6 +70,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
   this->get_parameter<std::string>("user_prompt", user_prompt_);
   this->get_parameter<std::string>("system_prompt", system_prompt_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
+  this->get_parameter<std::string>("text_msg_pub_topic_name", text_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
   this->get_parameter<std::string>("ros_string_sub_topic_name", ros_string_sub_topic_name_);
 
@@ -83,14 +86,11 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
        << "\n user_prompt: " << user_prompt_
        << "\n system_prompt: " << system_prompt_
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
+       << "\n text_msg_pub_topic_name: " << text_msg_pub_topic_name_
        << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_
        << "\n ros_string_sub_topic_name: " << ros_string_sub_topic_name_;
     RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "%s", ss.str().c_str());
   }
-
-  // if (Test() == 0) {
-  //   return;
-  // }
 
   // 使用基类接口初始化，加载模型
   if (Init() != 0) {
@@ -259,6 +259,11 @@ int LlamaCppNode::PostProcess(
   std::string result = "";
   parser_->Init(system_prompt_);
   parser_->Parse(parser_output->user_prompt, parser_output->output_tensors, result, output_msg_publisher_);
+  if (parser_output) {
+    std::stringstream ss;
+    ss << result;
+    RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "\n%s", ss.str().c_str());
+  }
 
   {
     std::unique_lock<std::mutex> lg(mtx_llm_);
@@ -337,22 +342,6 @@ int LlamaCppNode::PostProcess(
 
   // 发布AI消息
   ai_msg_publisher_->publish(std::move(pub_data));
-  return 0;
-}
-
-int LlamaCppNode::Test() {
-  // auto tts_ptr = std::make_shared<hobot_tts::HobotTTSNode>();
-  // std::string response = "你好";
-  // tts_ptr->set_config("/llm_topic","hw:0,0");
-  // tts_ptr->Init();
-  // auto res_msg = std::make_shared<std::string>(response);
-  // tts_ptr->SendMessage(res_msg);
-  std_msgs::msg::String::UniquePtr pub_string(
-      new std_msgs::msg::String());
-  pub_string->data = "你好我听到了";
-
-  output_msg_publisher_->publish(std::move(pub_string));
-
   return 0;
 }
 

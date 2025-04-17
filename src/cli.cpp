@@ -143,6 +143,62 @@ void CLI::process_system_prompt(struct llava_context * ctx_llava, common_params 
   eval_string(ctx_llava->ctx_llama, system_prompt.c_str(), params->n_batch, &n_past, &cur_pos_id, true);
 }
 
+// 判断一个字符是否是中文（UTF-8 三字节范围）
+bool isChinese(const std::string& str, size_t i) {
+  if (i + 2 >= str.size()) return false;
+
+  unsigned char c1 = str[i];
+  unsigned char c2 = str[i + 1];
+  unsigned char c3 = str[i + 2];
+
+  // 中文 UTF-8 范围是 E4 B8 80 到 E9 BE A5
+  return (c1 >= 0xE4 && c1 <= 0xE9);
+}
+
+// 判断是否是中文逗号或句号（UTF-8编码：，=E3 80 81，。=E3 80 82）
+bool isChinesePunctuation(const std::string& str, size_t i) {
+  if (i + 2 >= str.size()) return false;
+
+  return (str[i] == char(0xE3) && str[i + 1] == char(0x80) &&
+          (str[i + 2] == char(0x81) || str[i + 2] == char(0x82)));
+}
+
+std::string filterChineseAndPunctuation(const std::string& input, bool& hasChinese, bool& hasPunctuation) {
+  std::string result;
+  hasChinese = false;
+  hasPunctuation = false;
+
+  for (size_t i = 0; i < input.size(); ) {
+      if (isChinese(input, i)) {
+          hasChinese = true;
+          result += input.substr(i, 3);
+          i += 3;
+      } else {
+        hasPunctuation = true;
+        if (isChinesePunctuation(input, i)) {
+          result += input.substr(i, 3);
+          i += 3;
+        } else {
+          // 英文字符/符号等：跳过
+          unsigned char c = input[i];
+          if (c < 0x80) {
+              ++i;
+          } else if ((c & 0xE0) == 0xC0) {
+              i += 2; // 2-byte UTF-8
+          } else if ((c & 0xF0) == 0xE0) {
+              i += 3; // 3-byte UTF-8
+          } else if ((c & 0xF8) == 0xF0) {
+              i += 4; // 4-byte UTF-8
+          } else {
+              ++i;
+          }
+        }
+      }
+  }
+
+  return result;
+}
+
 void CLI::process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher) {
   int n_past = 0;
   int cur_pos_id = 0;
@@ -168,7 +224,8 @@ void CLI::process_prompt(struct llava_context * ctx_llava, struct llava_image_em
   }
 
   std::string sub_string = "";
-  int j = 0;
+  std::vector<std::string> his_strings;
+  bool is_repeat = false;
   for (int i = 0; i < max_tgt_len; i++) {
       // 在这里开始融合特征、处理融合特征。
       const char * tmp = sample(smpl, ctx_llava->ctx_llama, &n_past, &cur_pos_id);
@@ -181,24 +238,28 @@ void CLI::process_prompt(struct llava_context * ctx_llava, struct llava_image_em
       if (strstr(response.c_str(), "<|im_start|>")) break; // Yi-34B llava-1.6
       if (strstr(response.c_str(), "USER:")) break; // mistral llava-1.6
 
-      sub_string += tmp;
-      if (j % 5 == 0) {
+      bool hasChinese = false;
+      bool hasPunctuation = false;
+      std::string filtered = filterChineseAndPunctuation(tmp, hasChinese, hasPunctuation);
+  
+      sub_string += filtered;
+      if (hasPunctuation) {
+        for (int j = 0; j < his_strings.size(); j++) {
+          if (sub_string.size() >= 4 && his_strings[j] == sub_string) {
+            is_repeat = true;
+            break;
+          }
+        }
+
+        if (is_repeat) break;
+        his_strings.push_back(sub_string);
         std_msgs::msg::String::UniquePtr pub_string(
             new std_msgs::msg::String());  
         pub_string->data = sub_string;
         publisher->publish(std::move(pub_string));
         sub_string = "";
       }
-      j++;
-
       fflush(stdout);
-  }
-
-  if (sub_string != "") {
-    std_msgs::msg::String::UniquePtr pub_string(
-        new std_msgs::msg::String());  
-    pub_string->data = sub_string;
-    publisher->publish(std::move(pub_string));
   }
 
   common_sampler_free(smpl);

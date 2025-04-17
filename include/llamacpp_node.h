@@ -80,8 +80,6 @@ class LlamaCppNode : public DnnNode {
   // 本地回灌进行算法推理
   int FeedFromLocal();
 
-  int Test();
-
   int GetTextIndex(
         std::vector<std::string>& user_prompt,
         std::vector<int>& indexs,

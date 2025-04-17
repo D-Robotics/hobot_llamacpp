@@ -45,6 +45,12 @@ def generate_launch_description():
     system_prompt_launch_arg = DeclareLaunchArgument(
         "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
     )
+    text_msg_pub_name_launch_arg = DeclareLaunchArgument(
+        "llamacpp_text_msg_pub_name", default_value=TextSubstitution(text="/tts_text")
+    )
+    prompt_msg_usb_name_launch_arg = DeclareLaunchArgument(
+        "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/llamacpp_prompt")
+    )
 
     camera_type = os.getenv('CAM_TYPE')
     print("camera_type is ", camera_type)
@@ -81,7 +87,7 @@ def generate_launch_description():
         # 本地图片发布
         feedback_picture_arg = DeclareLaunchArgument(
             'publish_image_source',
-            default_value='./config/000000160864.jpg',
+            default_value='./config/image2.jpg',
             description='feedback picture')
 
         fb_node = IncludeLaunchDescription(
@@ -188,6 +194,8 @@ def generate_launch_description():
             {"llm_threads": 6},
             {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
             {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
+            {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
+            {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
             {"model_file_name": LaunchConfiguration('llamacpp_vit_model_file_name')},
             {"llm_model_name": LaunchConfiguration('llamacpp_gguf_model_file_name')}
         ],
@@ -220,6 +228,8 @@ def generate_launch_description():
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,
             system_prompt_launch_arg,
+            text_msg_pub_name_launch_arg,
+            prompt_msg_usb_name_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,
             # 图片发布pkg
@@ -242,6 +252,8 @@ def generate_launch_description():
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,
             system_prompt_launch_arg,
+            text_msg_pub_name_launch_arg,
+            prompt_msg_usb_name_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,
             # 图片发布pkg
