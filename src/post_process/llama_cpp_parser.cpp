@@ -46,15 +46,6 @@ struct llava_image_embed * LlamaCppParser::GetEmbedding(std::vector<std::shared_
       exit(1);
   }
 
-  // size_t size = num_tensors * length_tensors * sizeof(float);
-  // hbSysFlushMem(&(tensors[0]->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
-  // uint8_t *data = reinterpret_cast<uint8_t *>(tensors[0]->sysMem[0].virAddr);
-  // float* image_embed = static_cast<float*>(malloc(size));
-  // if (!image_embed) {
-  //     LOG_ERR("%s: failed to alloc mem\n", __func__);
-  // }
-  // memcpy(image_embed, data, size);
-
   hbSysFlushMem(&(tensors[0]->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
   float *image_embed = reinterpret_cast<float *>(tensors[0]->sysMem[0].virAddr);
 
@@ -81,9 +72,7 @@ int32_t LlamaCppParser::Parse(
   llava_image_embed * image_embed = GetEmbedding(output_tensors);
 
   if (!image_embed) {
-      // LOG_ERR("%s: failed to load image %s. Terminating\n\n", __func__, image.c_str());
-      std::cout << "error" << std::endl;
-      return 1;
+      return -1;
   }
 
   // process the prompt

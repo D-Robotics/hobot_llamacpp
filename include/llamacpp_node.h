@@ -80,6 +80,8 @@ class LlamaCppNode : public DnnNode {
   // 本地回灌进行算法推理
   int FeedFromLocal();
 
+  int Chat();
+
   int GetTextIndex(
         std::vector<std::string>& user_prompt,
         std::vector<int>& indexs,
@@ -120,7 +122,7 @@ class LlamaCppNode : public DnnNode {
   int model_input_width_ = -1;
   int model_input_height_ = -1;
 
-  // 用于预测的图片来源，0：本地图片；1：订阅到的image msg
+  // 用于预测的图片来源，0：本地图片；1：订阅到的image msg；2：llamacpp推理
   int feed_type_ = 0;
 
   // 使用shared mem通信方式订阅图片
@@ -129,16 +131,23 @@ class LlamaCppNode : public DnnNode {
   // 算法推理的任务数
   int task_num_ = 1;
   int llm_threads_ = 8;
+  int pre_infer_ = 0;
 
   // 提示词
   std::string cute_words_ = "好的，让我看看先哈";
   std::string user_prompt_ = "描述一下这张图片.";
   std::string system_prompt_ = "You are a helpful assistant.";
   std::mutex mtx_text_;
+  std::mutex mtx_prompt_text_;
+  std::string user_true_prompt_;
   std::condition_variable cv_text_;
+  std::condition_variable cv_prompt_text_;
   
   bool task_permission_ = true;
   std::mutex mtx_llm_;
+  
+  std::thread thread_;
+  std::atomic<bool> running_;
 
   // 用于回灌的本地图片信息
   std::string image_file_ = "image2.jpg";

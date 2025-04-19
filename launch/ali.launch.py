@@ -162,7 +162,7 @@ def generate_launch_description():
             parameters=[
                 {"audio_device": LaunchConfiguration('audio_device')},
                 {"pub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-                {"pub_awake_keyword": True}
+                {"pub_awake_keyword": False}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
@@ -173,7 +173,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {"config_path": 'config'},
-                {"push_wakeup": 1},
+                {"push_wakeup": 0},
                 {"asr_model": LaunchConfiguration('audio_asr_model')},
                 {"asr_pub_topic_name": LaunchConfiguration(
                     'llamacpp_prompt_msg_sub_name')}
@@ -181,29 +181,7 @@ def generate_launch_description():
             arguments=['--ros-args', '--log-level', 'warn']
         )
 
-    if tts_type == "cloud":
-        tts_node = Node(
-            package='aliyun_tts_node',
-            executable='aliyun_tts_node',
-            output='screen',
-            parameters=[
-                {"tts_method": "sambert"},
-                {"text_topic": "/tts_text"},
-                {"cosy_voice": "longjielidou"},
-                {"audio_device": LaunchConfiguration('audio_device')}
-            ],
-            arguments=['--ros-args', '--log-level', 'info']
-        )
-    else:
-        tts_node = Node(
-            package='hobot_tts',
-            executable='hobot_tts',
-            output='screen',
-            parameters=[
-                {"playback_device": LaunchConfiguration('audio_device')}
-            ],
-            arguments=['--ros-args', '--log-level', 'warn']
-        )
+
 
     # jpeg图片编码&发布pkg
     jpeg_codec_node = IncludeLaunchDescription(
@@ -249,24 +227,39 @@ def generate_launch_description():
 
     # 算法pkg
     llama_node = Node(
-        package='hobot_llamacpp',
-        executable='hobot_llamacpp',
+        package='qwen_agent_node',
+        executable='qwen_agent_node',
         output='screen',
         parameters=[
-            {"feed_type": 1},
-            {"is_shared_mem_sub": 1},
-            {"llm_threads": 6},
-            {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
-            {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
-            {"pre_infer": 1},
-            {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
-            {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
-            {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-            {"model_file_name": LaunchConfiguration('llamacpp_vit_model_file_name')},
-            {"llm_model_name": LaunchConfiguration('llamacpp_gguf_model_file_name')}
+            {"image_topic": "/image"},
+            {"use_compressed": True},
+            {"asr_topic": LaunchConfiguration('llamacpp_prompt_msg_sub_name')}
         ],
-        arguments=['--ros-args', '--log-level', 'warn']
+        arguments=['--ros-args', '--log-level', 'info']
     )
+
+    if tts_type == "cloud":
+        tts_node = Node(
+            package='aliyun_tts_node',
+            executable='aliyun_tts_node',
+            output='screen',
+            parameters=[
+                {"tts_method": "sambert"},
+                {"text_topic": "/tts_text"},
+                {"cosy_voice": "longjielidou"}
+            ],
+            arguments=['--ros-args', '--log-level', 'info']
+        )
+    else:
+        tts_node = Node(
+            package='hobot_tts',
+            executable='hobot_tts',
+            output='screen',
+            parameters=[
+                {"playback_device": LaunchConfiguration('audio_device')}
+            ],
+            arguments=['--ros-args', '--log-level', 'warn']
+        )
 
     shared_mem_node = IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

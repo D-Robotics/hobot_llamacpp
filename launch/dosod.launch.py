@@ -34,23 +34,20 @@ def generate_launch_description():
     image_height_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_height", default_value=TextSubstitution(text="1080")
     )
-    model_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_v2.bin")
-    )
-    gguf_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_gguf_model_file_name", default_value=TextSubstitution(text="Qwen2.5-0.5B-Instruct-Q4_0.gguf")
-    )
-    user_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_user_prompt", default_value=TextSubstitution(text="")
-    )
-    system_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
-    )
-    text_msg_pub_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_text_msg_pub_name", default_value=TextSubstitution(text="/tts_text")
-    )
     prompt_msg_usb_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/llamacpp_prompt")
+    )
+    msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
+        "dosod_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_dosod")
+    )
+    dosod_model_file_name_launch_arg = DeclareLaunchArgument(
+        "dosod_model_file_name", default_value=TextSubstitution(text="config/dosod_mlp3x_l_rep-int16.bin")
+    )
+    vocabulary_file_name_launch_arg = DeclareLaunchArgument(
+        "dosod_vocabulary_file_name", default_value=TextSubstitution(text="config/office3.json")
+    )
+    score_threshold_launch_arg = DeclareLaunchArgument(
+        "dosod_score_threshold", default_value=TextSubstitution(text="0.2")
     )
     audio_asr_model_launch_arg = DeclareLaunchArgument(
         "audio_asr_model", default_value=TextSubstitution(text="sense-voice-small-fp16.gguf")
@@ -154,56 +151,33 @@ def generate_launch_description():
         camera_type_mipi = True
         camera_device_arg = mipi_cam_device_arg
 
-    if asr_type == "cloud":
-        asr_node = Node(
-            package='aliyun_asr_node',
-            executable='asr_node',
-            output='screen',
-            parameters=[
-                {"audio_device": LaunchConfiguration('audio_device')},
-                {"pub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-                {"pub_awake_keyword": True}
-            ],
-            arguments=['--ros-args', '--log-level', 'warn']
-        )
-    else:
+    if asr_type == "local":
         asr_node = Node(
             package='hobot_asr',
             executable='hobot_asr',
             output='screen',
             parameters=[
                 {"config_path": 'config'},
-                {"push_wakeup": 1},
+                {"push_wakeup": 0},
                 {"asr_model": LaunchConfiguration('audio_asr_model')},
                 {"asr_pub_topic_name": LaunchConfiguration(
                     'llamacpp_prompt_msg_sub_name')}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
-
-    if tts_type == "cloud":
-        tts_node = Node(
-            package='aliyun_tts_node',
-            executable='aliyun_tts_node',
-            output='screen',
-            parameters=[
-                {"tts_method": "sambert"},
-                {"text_topic": "/tts_text"},
-                {"cosy_voice": "longjielidou"},
-                {"audio_device": LaunchConfiguration('audio_device')}
-            ],
-            arguments=['--ros-args', '--log-level', 'info']
-        )
     else:
-        tts_node = Node(
-            package='hobot_tts',
-            executable='hobot_tts',
+        asr_type = "cloud"
+        asr_node = Node(
+            package='aliyun_asr_node',
+            executable='asr_node',
             output='screen',
             parameters=[
-                {"playback_device": LaunchConfiguration('audio_device')}
+                {"audio_device": LaunchConfiguration('audio_device')},
+                {"pub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
+
 
     # jpeg图片编码&发布pkg
     jpeg_codec_node = IncludeLaunchDescription(
@@ -243,30 +217,65 @@ def generate_launch_description():
         launch_arguments={
             'websocket_image_topic': '/image',
             'websocket_image_type': 'mjpeg',
-            'websocket_only_show_image': 'True'
+            'websocket_smart_topic': LaunchConfiguration("dosod_msg_pub_topic_name")
         }.items()
     )
 
     # 算法pkg
-    llama_node = Node(
-        package='hobot_llamacpp',
-        executable='hobot_llamacpp',
+    dosod_node = Node(
+        package='hobot_dosod',
+        executable='hobot_dosod',
         output='screen',
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
-            {"llm_threads": 6},
-            {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
-            {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
-            {"pre_infer": 1},
-            {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
-            {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
-            {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-            {"model_file_name": LaunchConfiguration('llamacpp_vit_model_file_name')},
-            {"llm_model_name": LaunchConfiguration('llamacpp_gguf_model_file_name')}
+            {"msg_pub_topic_name": LaunchConfiguration(
+                "dosod_msg_pub_topic_name")},
+            {"model_file_name": LaunchConfiguration(
+                "dosod_model_file_name")},
+            {"vocabulary_file_name": LaunchConfiguration(
+                "dosod_vocabulary_file_name")},
+            {"class_mode": 0},
+            {"score_threshold": LaunchConfiguration(
+                "dosod_score_threshold")}
         ],
-        arguments=['--ros-args', '--log-level', 'warn']
+        arguments=['--ros-args', '--log-level', 'error']
     )
+
+    object2text_node = Node(
+        package='object2text_node',
+        executable='object2text',
+        output='screen',
+        parameters=[
+            {"asr_msg_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
+            {"key_word": ""}
+        ],
+        arguments=['--ros-args', '--log-level', 'info']
+    )
+
+    if tts_type == "cloud":
+        tts_node = Node(
+            package='aliyun_tts_node',
+            executable='aliyun_tts_node',
+            output='screen',
+            parameters=[
+                {"tts_method": "sambert"},
+                {"text_topic": "/tts_text"},
+                {"cosy_voice": "longjielidou"},
+                {"audio_device": LaunchConfiguration('audio_device')}
+            ],
+            arguments=['--ros-args', '--log-level', 'info']
+        )
+    else:
+        tts_node = Node(
+            package='hobot_tts',
+            executable='hobot_tts',
+            output='screen',
+            parameters=[
+                {"playback_device": LaunchConfiguration('audio_device')}
+            ],
+            arguments=['--ros-args', '--log-level', 'warn']
+        )
 
     shared_mem_node = IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -280,12 +289,11 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
-            gguf_file_name_launch_arg,
-            user_prompt_launch_arg,
-            system_prompt_launch_arg,
-            text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
+            msg_pub_topic_name_launch_arg,
+            dosod_model_file_name_launch_arg,
+            vocabulary_file_name_launch_arg,
+            score_threshold_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node
@@ -296,8 +304,10 @@ def generate_launch_description():
             cam_node,
             # 图片编解码&发布pkg
             jpeg_codec_node,
-            # 启动llamacpp pkg
-            llama_node,
+            # dosod 节点
+            dosod_node,
+            # 转换节点
+            object2text_node,
             # 启动 tts pkg
             tts_node,
             # 启动web展示pkg
@@ -308,12 +318,11 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
-            gguf_file_name_launch_arg,
-            user_prompt_launch_arg,
-            system_prompt_launch_arg,
-            text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
+            msg_pub_topic_name_launch_arg,
+            dosod_model_file_name_launch_arg,
+            vocabulary_file_name_launch_arg,
+            score_threshold_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node
@@ -324,8 +333,10 @@ def generate_launch_description():
             cam_node,
             # 图片编解码&发布pkg
             nv12_codec_node,
-            # 启动llamacpp pkg
-            llama_node,
+            # dosod 节点
+            dosod_node,
+            # 转换节点
+            object2text_node,
             # 启动 tts pkg
             tts_node,
             # 启动web展示pkg

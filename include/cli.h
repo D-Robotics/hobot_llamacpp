@@ -22,6 +22,11 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include "base64.hpp"
 #include "ggml.h"
@@ -29,6 +34,10 @@
 #include "log.h"
 #include "sampling.h"
 #include "src/llama-context.h"
+#include "common.h"
+#include "console.h"
+#include "chat.h"
+#include "arg.h"
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -46,6 +55,32 @@ struct llava_image_embed {
 
 static const char* IMG_BASE64_TAG_BEGIN = "<img src=\"data:image/jpeg;base64,";
 static const char* IMG_BASE64_TAG_END = "\">";
+
+static const char * DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant";
+
+static llama_context           ** g_ctx;
+static llama_model             ** g_model;
+static common_sampler          ** g_smpl;
+static common_params            * g_params;
+static std::vector<llama_token> * g_input_tokens;
+static std::ostringstream       * g_output_ss;
+static std::vector<llama_token> * g_output_tokens;
+static bool is_interacting  = false;
+static bool need_insert_eot = false;
+
+static void print_usage(int argc, char ** argv) {
+  (void) argc;
+
+  LOG("\nexample usage:\n");
+  LOG("\n  text generation:     %s -m your_model.gguf -p \"I believe the meaning of life is\" -n 128\n", argv[0]);
+  LOG("\n  chat (conversation): %s -m your_model.gguf -p \"You are a helpful assistant\" -cnv\n", argv[0]);
+  LOG("\n");
+}
+
+bool isChinese(const std::string& str, size_t i);
+bool isChinesePunctuation(const std::string& str, size_t i);
+std::string filterChineseAndPunctuation(const std::string& input, bool& hasChinese, bool& hasPunctuation);
+
 
 class CLI {
  public:

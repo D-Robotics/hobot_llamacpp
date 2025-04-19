@@ -34,9 +34,6 @@ def generate_launch_description():
     image_height_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_height", default_value=TextSubstitution(text="1080")
     )
-    model_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_v2.bin")
-    )
     gguf_file_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_gguf_model_file_name", default_value=TextSubstitution(text="Qwen2.5-0.5B-Instruct-Q4_0.gguf")
     )
@@ -44,12 +41,12 @@ def generate_launch_description():
         "llamacpp_user_prompt", default_value=TextSubstitution(text="")
     )
     system_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
+        "llamacpp_system_prompt", default_value=TextSubstitution(text="Robosen_2.txt")
     )
     text_msg_pub_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_text_msg_pub_name", default_value=TextSubstitution(text="/tts_text")
     )
-    prompt_msg_usb_name_launch_arg = DeclareLaunchArgument(
+    prompt_msg_sub_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/llamacpp_prompt")
     )
     audio_asr_model_launch_arg = DeclareLaunchArgument(
@@ -162,7 +159,7 @@ def generate_launch_description():
             parameters=[
                 {"audio_device": LaunchConfiguration('audio_device')},
                 {"pub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-                {"pub_awake_keyword": True}
+                {"pub_awake_keyword": False}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
@@ -173,7 +170,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {"config_path": 'config'},
-                {"push_wakeup": 1},
+                {"push_wakeup": 0},
                 {"asr_model": LaunchConfiguration('audio_asr_model')},
                 {"asr_pub_topic_name": LaunchConfiguration(
                     'llamacpp_prompt_msg_sub_name')}
@@ -253,16 +250,13 @@ def generate_launch_description():
         executable='hobot_llamacpp',
         output='screen',
         parameters=[
-            {"feed_type": 1},
-            {"is_shared_mem_sub": 1},
+            {"feed_type": 2},
             {"llm_threads": 6},
             {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
             {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
-            {"pre_infer": 1},
-            {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
+            {"cute_words": "我来啦"},
             {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
             {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-            {"model_file_name": LaunchConfiguration('llamacpp_vit_model_file_name')},
             {"llm_model_name": LaunchConfiguration('llamacpp_gguf_model_file_name')}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
@@ -280,12 +274,11 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,
             system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
-            prompt_msg_usb_name_launch_arg,
+            prompt_msg_sub_name_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node
@@ -308,12 +301,11 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,
             system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
-            prompt_msg_usb_name_launch_arg,
+            prompt_msg_sub_name_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node
