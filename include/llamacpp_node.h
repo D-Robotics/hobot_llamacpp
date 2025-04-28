@@ -108,7 +108,7 @@ class LlamaCppNode : public DnnNode {
   // string msg 控制话题信息
   rclcpp::Subscription<std_msgs::msg::String>::ConstSharedPtr
       ros_string_subscription_ = nullptr;
-  std::string ros_string_sub_topic_name_ = "/llamacpp_prompt";
+  std::string ros_string_sub_topic_name_ = "/prompt_text";
   void RosStringProcess(const std_msgs::msg::String::ConstSharedPtr msg);
 
   std::shared_ptr<LlamaCppParser> parser_ = nullptr;

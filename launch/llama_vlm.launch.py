@@ -26,7 +26,6 @@ from ament_index_python.packages import get_package_prefix
 
 def generate_launch_description():
 
-    os.environ["DASHSCOPE_API_KEY"] = 'sk-5c3a3354fbbe4dcdb87d080f41154041'
     # args that can be set from the command line or a default will be used
     image_width_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_width", default_value=TextSubstitution(text="1920")
@@ -46,17 +45,20 @@ def generate_launch_description():
     system_prompt_launch_arg = DeclareLaunchArgument(
         "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
     )
+    advance_launch_arg = DeclareLaunchArgument(
+        "llamacpp_advance", default_value=TextSubstitution(text="0")
+    )
     text_msg_pub_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_text_msg_pub_name", default_value=TextSubstitution(text="/tts_text")
     )
     prompt_msg_usb_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/llamacpp_prompt")
+        "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/prompt_text")
     )
     audio_asr_model_launch_arg = DeclareLaunchArgument(
         "audio_asr_model", default_value=TextSubstitution(text="sense-voice-small-fp16.gguf")
     )
     audio_device_launch_arg = DeclareLaunchArgument(
-        "audio_device", default_value=TextSubstitution(text="plughw:0,0")
+        "audio_device", default_value=TextSubstitution(text="hw:0,0")
     )
 
     camera_type = os.getenv('CAM_TYPE')
@@ -162,21 +164,21 @@ def generate_launch_description():
             parameters=[
                 {"audio_device": LaunchConfiguration('audio_device')},
                 {"pub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
-                {"pub_awake_keyword": True}
+                {"pub_awake_keyword": True if LaunchConfiguration('llamacpp_advance') == 1 else False}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
     else:
         asr_node = Node(
-            package='hobot_asr',
-            executable='hobot_asr',
+            package='sensevoice_ros2',
+            executable='sensevoice_ros2',
             output='screen',
             parameters=[
-                {"config_path": 'config'},
-                {"push_wakeup": 1},
+                {"push_wakeup": LaunchConfiguration('llamacpp_advance')},
                 {"asr_model": LaunchConfiguration('audio_asr_model')},
                 {"asr_pub_topic_name": LaunchConfiguration(
-                    'llamacpp_prompt_msg_sub_name')}
+                    'llamacpp_prompt_msg_sub_name')},
+                {"micphone_name": LaunchConfiguration('audio_device')}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
@@ -258,7 +260,7 @@ def generate_launch_description():
             {"llm_threads": 6},
             {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
             {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
-            {"pre_infer": 1},
+            {"pre_infer": LaunchConfiguration('llamacpp_advance')},
             {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
             {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
             {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
@@ -286,6 +288,7 @@ def generate_launch_description():
             system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
+            advance_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node
@@ -314,6 +317,7 @@ def generate_launch_description():
             system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
+            advance_launch_arg,
             audio_asr_model_launch_arg,
             audio_device_launch_arg,
             # 启动零拷贝环境配置node

@@ -26,7 +26,6 @@ from ament_index_python.packages import get_package_prefix
 
 def generate_launch_description():
 
-    os.environ["DASHSCOPE_API_KEY"] = 'sk-5c3a3354fbbe4dcdb87d080f41154041'
     # args that can be set from the command line or a default will be used
     image_width_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_width", default_value=TextSubstitution(text="1920")
@@ -34,29 +33,17 @@ def generate_launch_description():
     image_height_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_height", default_value=TextSubstitution(text="1080")
     )
-    model_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_v2.bin")
-    )
-    gguf_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_gguf_model_file_name", default_value=TextSubstitution(text="Qwen2.5-0.5B-Instruct-Q4_0.gguf")
-    )
-    user_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_user_prompt", default_value=TextSubstitution(text="")
-    )
-    system_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
-    )
     text_msg_pub_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_text_msg_pub_name", default_value=TextSubstitution(text="/tts_text")
     )
     prompt_msg_usb_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/llamacpp_prompt")
+        "llamacpp_prompt_msg_sub_name", default_value=TextSubstitution(text="/prompt_text")
     )
     audio_asr_model_launch_arg = DeclareLaunchArgument(
         "audio_asr_model", default_value=TextSubstitution(text="sense-voice-small-fp16.gguf")
     )
     audio_device_launch_arg = DeclareLaunchArgument(
-        "audio_device", default_value=TextSubstitution(text="plughw:0,0")
+        "audio_device", default_value=TextSubstitution(text="hw:0,0")
     )
 
     camera_type = os.getenv('CAM_TYPE')
@@ -168,20 +155,18 @@ def generate_launch_description():
         )
     else:
         asr_node = Node(
-            package='hobot_asr',
-            executable='hobot_asr',
+            package='sensevoice_ros2',
+            executable='sensevoice_ros2',
             output='screen',
             parameters=[
-                {"config_path": 'config'},
                 {"push_wakeup": 0},
                 {"asr_model": LaunchConfiguration('audio_asr_model')},
                 {"asr_pub_topic_name": LaunchConfiguration(
-                    'llamacpp_prompt_msg_sub_name')}
+                    'llamacpp_prompt_msg_sub_name')},
+                {"micphone_name": LaunchConfiguration('audio_device')}
             ],
             arguments=['--ros-args', '--log-level', 'warn']
         )
-
-
 
     # jpeg图片编码&发布pkg
     jpeg_codec_node = IncludeLaunchDescription(
@@ -273,10 +258,6 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
-            gguf_file_name_launch_arg,
-            user_prompt_launch_arg,
-            system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
             audio_asr_model_launch_arg,
@@ -301,10 +282,6 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
-            model_file_name_launch_arg,
-            gguf_file_name_launch_arg,
-            user_prompt_launch_arg,
-            system_prompt_launch_arg,
             text_msg_pub_name_launch_arg,
             prompt_msg_usb_name_launch_arg,
             audio_asr_model_launch_arg,
