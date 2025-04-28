@@ -150,7 +150,7 @@ class LlamaCppNode : public DnnNode {
   std::atomic<bool> running_;
 
   // 用于回灌的本地图片信息
-  std::string image_file_ = "image2.jpg";
+  std::string image_file_ = "config/image2.jpg";
 
   // 发布AI消息的topic和发布者
   std::string ai_msg_pub_topic_name_ = "/llama_cpp_node";
