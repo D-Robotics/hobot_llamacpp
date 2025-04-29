@@ -2,8 +2,8 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>hobot_llamacpp</name>
-  <version>0.2.1</version>
-  <description>TogetheROS yolo world perception</description>
+  <version>0.2.2</version>
+  <description>TogetheROS hobot llamacpp</description>
   <maintainer email="zixi01.chen@d-robotics.cc">zixi01.chen</maintainer>
   <license>Apache License 2.0</license>
 

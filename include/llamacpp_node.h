@@ -135,7 +135,7 @@ class LlamaCppNode : public DnnNode {
 
   // 提示词
   std::string cute_words_ = "好的，让我看看先哈";
-  std::string user_prompt_ = "描述一下这张图片.";
+  std::string user_prompt_ = "";
   std::string system_prompt_ = "You are a helpful assistant.";
   std::mutex mtx_text_;
   std::mutex mtx_prompt_text_;

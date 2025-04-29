@@ -49,8 +49,6 @@ def generate_launch_description():
         "audio_device", default_value=TextSubstitution(text="hw:0,0")
     )
 
-    camera_type = os.getenv('CAM_TYPE')
-    print("camera_type is ", camera_type)
     asr_type = os.getenv('ASR_TYPE')
     print("asr_type is ", asr_type)
     tts_type = os.getenv('TTS_TYPE')

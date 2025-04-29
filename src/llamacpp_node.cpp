@@ -76,6 +76,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<int>("llm_threads", llm_threads_);
   this->declare_parameter<std::string>("llm_model_name", llm_model_name_);
+  this->declare_parameter<std::string>("model_file_name", model_file_name_);
   this->declare_parameter<std::string>("cute_words", cute_words_);
   this->declare_parameter<std::string>("user_prompt", user_prompt_);
   this->declare_parameter<std::string>("system_prompt", system_prompt_);
@@ -94,6 +95,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<int>("llm_threads", llm_threads_);
   this->get_parameter<std::string>("llm_model_name", llm_model_name_);
+  this->get_parameter<std::string>("model_file_name", model_file_name_);
   this->get_parameter<std::string>("cute_words", cute_words_);
   this->get_parameter<std::string>("user_prompt", user_prompt_);
   this->get_parameter<std::string>("system_prompt", system_prompt_);
@@ -111,6 +113,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
        << "\n llm_threads: " << llm_threads_
        << "\n llm_model_name: " << llm_model_name_
+       << "\n model_file_name: " << model_file_name_
        << "\n cute_words: " << cute_words_
        << "\n user_prompt: " << user_prompt_
        << "\n system_prompt: " << system_prompt_
@@ -1124,7 +1127,7 @@ int LlamaCppNode::Chat() {
       if (input_echo && display && !task_permission_) {
           for (auto id : embd) {
               const std::string token_str = common_token_to_piece(ctx, id, params.special);
-              LOG(" %s", token_str.c_str());
+              LOG("%s", token_str.c_str());
               // Console/Stream Output
 
               bool hasChinese = false;
@@ -1247,7 +1250,6 @@ int LlamaCppNode::Chat() {
                   LOG_DBG("adding input prefix BOS token\n");
                   embd_inp.push_back(llama_vocab_bos(vocab));
               }
-              LOG("11111 i am wait here.");
               if (init_status == false) {
                 std_msgs::msg::String::UniquePtr pub_string(
                   new std_msgs::msg::String());  
