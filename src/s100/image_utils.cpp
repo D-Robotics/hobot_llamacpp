@@ -73,10 +73,6 @@ std::shared_ptr<DNNTensor> ImageUtils::GetBGRTensorFromBGR(
   cv::merge(channels, pixel_values_mat);
 
   auto *mem = new hbUCPSysMem;
-  std::cout << scaled_img_height << std::endl;
-  std::cout << w_stride << std::endl;
-  std::cout << channel << std::endl;
-  std::cout << src_elem_size << std::endl;
   hbUCPMallocCached(mem, scaled_img_height * w_stride * channel * src_elem_size, 0);
 
   uint8_t *data = pixel_values_mat.data;
