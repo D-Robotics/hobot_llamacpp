@@ -21,7 +21,9 @@ hobot llamacpp package是基于 [llama.cpp](https://github.com/ggml-org/llama.cp
 
 # 编译
 
-- X5版本：支持在X5 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
+- X5版本：支持在X5 Ubuntu系统上编译。
+
+- S100版本：支持在S100 Ubuntu系统上编译。
 
 同时支持通过编译选项控制编译pkg的依赖和pkg的功能。
 
@@ -49,11 +51,11 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 - 如果关闭, 编译和运行不依赖hbm_img_msgs pkg, 支持使用原生ros和tros进行编译。
 - 对于shared mem通信方式, 当前只支持订阅nv12格式图片。
 
-## X5 Ubuntu系统上编译
+## 板端 Ubuntu系统上编译
 
 1、编译环境确认
 
-- 板端已安装X5 Ubuntu系统。
+- 板端已安装X5/S100 Ubuntu系统。
 - 当前编译终端已设置TogetherROS环境变量：`source PATH/setup.bash`。其中PATH为TogetherROS的安装路径。
 - 已安装ROS2编译工具colcon。安装的ROS不包含编译工具colcon, 需要手动安装colcon。colcon安装命令：`pip install -U colcon-common-extensions`
 - 已编译dnn node package
@@ -65,29 +67,7 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 ```shell
 cmake -B build
 cmake --build build --config Release
-cd hobot_llamacpp && ln -s thirdparty/llama.cpp llama.cpp
-```
-
-3、编译
-
-- 编译命令：`colcon build --packages-select hobot_llamacpp`
-
-## docker交叉编译 X5版本
-
-1、编译环境确认
-
-- 在docker中编译, 并且docker中已经安装好TogetherROS。docker安装、交叉编译说明、TogetherROS编译和部署说明详见机器人开发平台robot_dev_config repo中的README.md。
-- 已编译dnn node package
-- 已编译hbm_img_msgs package（编译方法见Dependency部分）
-
-2、编译依赖
-
-- 链接第三方仓库 [llama.cpp](https://github.com/ggml-org/llama.cpp):
- 
-在板端编译第三方 llama.cpp, 复制到交叉编译docker中
-```shell
-cmake -B build
-cmake --build build --config Release
+# 链接llama.cpp到工程目录下
 cd hobot_llamacpp && ln -s thirdparty/llama.cpp llama.cpp
 ```
 
@@ -97,14 +77,13 @@ cd hobot_llamacpp && ln -s thirdparty/llama.cpp llama.cpp
 
 ```shell
 # RDK X5
-bash robot_dev_config/build.sh -p X5 -s hobot_llamacpp
+colcon build --merge-install --cmake-args -DPLATFORM_X5=ON --packages-select hobot_llamacpp
 ```
 
-- 编译选项中默认打开了shared mem通信方式。
-
-
-## 注意事项
-
+```shell
+# RDK S100
+colcon build --merge-install --cmake-args -DPLATFORM_S100=ON --packages-select hobot_llamacpp
+```
 
 # 使用介绍
 

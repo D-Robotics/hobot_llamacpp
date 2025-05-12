@@ -31,7 +31,7 @@
 #include "base64.hpp"
 #include "ggml.h"
 #include "llama.h"
-#include "log.h"
+#include "common/log.h"
 #include "sampling.h"
 #include "src/llama-context.h"
 #include "common.h"

@@ -143,15 +143,6 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
       }
     }
 
-    // 加载模型后查询模型输入分辨率
-    if (GetModelInputSize(0, model_input_width_, model_input_height_) < 0) {
-      RCLCPP_ERROR(rclcpp::get_logger("llama_cpp_node"), "Get model input size fail!");
-    } else {
-      RCLCPP_INFO(rclcpp::get_logger("llama_cpp_node"),
-                  "The model input width is %d and height is %d",
-                  model_input_width_,
-                  model_input_height_);
-    }
     parser_ = std::make_shared<LlamaCppParser>(llm_model_name_, system_prompt_, llm_threads_);
   }
   
