@@ -58,6 +58,10 @@ if(PLATFORM_X5)
   message("build platform X5")
   add_definitions(-DPLATFORM_X5)
   set(PREFIX_PATH x5)
+elseif(PLATFORM_S100)
+  message("build platform S100")
+  add_definitions(-DPLATFORM_S100)
+  set(PREFIX_PATH s100)
 else()
   if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
     message("invalid platform, build platform X5 default")
@@ -77,6 +81,7 @@ include_directories(
   ${SYS_ROOT}/usr/include/opencv/
   ${SYS_ROOT}/usr/include/
   ${SYS_ROOT}/usr/hobot/include/
+  ${SYS_ROOT}/usr/include/hobot/
   ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/
   ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common/
   ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include/
@@ -98,10 +103,10 @@ add_subdirectory(llama.cpp)
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
-  src/image_utils.cpp
   src/cli.cpp
   src/llamacpp_node.cpp
-  src/post_process/llama_cpp_parser.cpp
+  src/${PREFIX_PATH}/image_utils.cpp
+  src/${PREFIX_PATH}/llama_cpp_parser.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} 

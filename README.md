@@ -38,11 +38,10 @@ ROS Packages:
 
 hbm_img_msgs is a custom image message format used for image transmission in shared memory scenarios. The hbm_img_msgs pkg is defined in hobot_msgs; therefore, if shared memory is used for image transmission, this pkg is required.
 
-## Docker Cross-Compilation for X5 Version
+## Compilation On Board
 
 1. Compilation Environment Verification
 
-- Compilation within docker, and TogetherROS has been installed in the docker environment. For instructions on docker installation, cross-compilation, TogetherROS compilation, and deployment, please refer to the README.md in the robot development platform's robot_dev_config repo.
 - The dnn node package has been compiled.
 - The hbm_img_msgs package has been compiled (see Dependency section for compilation methods).
 
@@ -53,6 +52,7 @@ hbm_img_msgs is a custom image message format used for image transmission in sha
   ```shell
   cmake -B build
   cmake --build build --config Release
+  # link llama.cpp to project
   cd hobot_llamacpp && ln -s thirdparty/llama.cpp llama.cpp
   ```
 
@@ -61,6 +61,11 @@ hbm_img_msgs is a custom image message format used for image transmission in sha
   ```shell
   # RDK X5
   colcon build --merge-install --cmake-args -DPLATFORM_X5=ON --packages-select hobot_llamacpp
+  ```
+
+  ```shell
+  # RDK S100
+  colcon build --merge-install --cmake-args -DPLATFORM_S100=ON --packages-select hobot_llamacpp
   ```
 
 - Shared memory communication method is enabled by default in the compilation options.

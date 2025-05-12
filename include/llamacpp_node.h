@@ -32,7 +32,7 @@
 #endif
 
 #include "base64.hpp"
-#include "log.h"
+#include "common/log.h"
 #include "sampling.h"
 #include "llama.h"
 #include "ggml.h"
@@ -119,8 +119,8 @@ class LlamaCppNode : public DnnNode {
   std::string llm_model_name_ = "Qwen2.5-0.5B-Instruct-Q4_0.gguf";
 
   // 加载模型后，查询出模型输入分辨率
-  int model_input_width_ = -1;
-  int model_input_height_ = -1;
+  int model_input_width_ = 448;
+  int model_input_height_ = 448;
 
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg；2：llamacpp推理
   int feed_type_ = 0;
