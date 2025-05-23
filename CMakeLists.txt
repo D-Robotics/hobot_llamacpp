@@ -105,6 +105,7 @@ add_executable(${PROJECT_NAME}
   src/main.cpp
   src/cli.cpp
   src/llamacpp_node.cpp
+  src/util.cpp
   src/${PREFIX_PATH}/image_utils.cpp
   src/${PREFIX_PATH}/llama_cpp_parser.cpp
 )

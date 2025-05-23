@@ -39,6 +39,7 @@
 
 #include "include/cli.h"
 #include "include/post_process/llama_cpp_parser.h"
+#include "include/util.h"
 
 #ifndef YOLO_WORLD_NODE_H_
 #define YOLO_WORLD_NODE_H_
@@ -58,6 +59,8 @@ struct ImageEmbeddingOutput : public DnnNodeOutput {
 
   // 图片数据用于渲染
   std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
+
+  int img_w = 0; // 原始图像的最长边
 
   ai_msgs::msg::Perf perf_preprocess;
 };
@@ -81,11 +84,6 @@ class LlamaCppNode : public DnnNode {
   int FeedFromLocal();
 
   int Chat();
-
-  int GetTextIndex(
-        std::vector<std::string>& user_prompt,
-        std::vector<int>& indexs,
-        std::vector<std::string>& target_texts);
 
   // 订阅图片消息的topic和订阅者
   // 共享内存模式
@@ -124,6 +122,8 @@ class LlamaCppNode : public DnnNode {
 
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg；2：llamacpp推理
   int feed_type_ = 0;
+
+  int parser_mode_ = 0;
 
   // 使用shared mem通信方式订阅图片
   int is_shared_mem_sub_ = 0;

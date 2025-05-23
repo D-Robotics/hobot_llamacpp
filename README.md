@@ -83,6 +83,7 @@ hbm_img_msgs is a custom image message format used for image transmission in sha
 | Parameter Name      | Explanation                            | Mandatory            | Default Value       | Remarks                                                                 |
 | ------------------- | -------------------------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------- |
 | feed_type           | Data source, 0: vlm local; 1: vlm subscribe; 2: llm subscribe  | No                   | 0                   |                                                                         |
+| parser_mode           | Model parse, 0: common mode; 1: detection mode | No                   | 0                   |                                                                         |
 | image               | Local image path                       | No                   | config/image2.jpg     |                                                                         |
 | is_shared_mem_sub   | Subscribe to images using shared memory communication method | No  | 0                   |                                                                         |                                                                   |
 | llm_threads | LLM Run num of threads | No | 8 | |

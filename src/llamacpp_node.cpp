@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <vector>
 #include <random>
+#include <regex>
 
 #include "rclcpp/rclcpp.hpp"
 #include "cv_bridge/cv_bridge.h"
@@ -41,37 +42,12 @@ int CalTimeMsDuration(const builtin_interfaces::msg::Time &start,
          start.nanosec / 1000 / 1000;
 }
 
-// 分割函数
-std::vector<std::string> split(const std::string& input, char delimiter) {
-  std::vector<std::string> result;
-  std::stringstream ss(input);
-  std::string token;
-
-  while (std::getline(ss, token, delimiter)) {
-      if (!token.empty()) {
-          result.push_back(token);
-      }
-  }
-  return result;
-}
-
-// 随机选择子词
-std::string getRandomSubword(const std::string& input) {
-  std::vector<std::string> words = split(input, ';');
-  if (words.empty()) return "";
-
-  // 使用随机数生成器
-  static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
-  std::uniform_int_distribution<size_t> dist(0, words.size() - 1);
-
-  return words[dist(rng)];
-}
-
 LlamaCppNode::LlamaCppNode(const std::string &node_name,
                                const NodeOptions &options)
     : DnnNode(node_name, options) {
   // 更新配置
   this->declare_parameter<int>("feed_type", feed_type_);
+  this->declare_parameter<int>("parser_mode", parser_mode_);
   this->declare_parameter<std::string>("image", image_file_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<int>("llm_threads", llm_threads_);
@@ -91,6 +67,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
                                        ros_string_sub_topic_name_);
 
   this->get_parameter<int>("feed_type", feed_type_);
+  this->get_parameter<int>("parser_mode", parser_mode_);
   this->get_parameter<std::string>("image", image_file_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<int>("llm_threads", llm_threads_);
@@ -109,6 +86,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
     std::stringstream ss;
     ss << "Parameter:"
        << "\n feed_type(0:local, 1:sub): " << feed_type_
+       << "\n parser_mode(0:common, 1:det): " << parser_mode_
        << "\n image: " << image_file_
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
        << "\n llm_threads: " << llm_threads_
@@ -256,13 +234,6 @@ int LlamaCppNode::SetNodePara() {
   return 0;
 }
 
-int LlamaCppNode::GetTextIndex(
-      std::vector<std::string>& user_prompt,
-      std::vector<int>& indexs,
-      std::vector<std::string>& target_texts) {
-  return 0;
-}
-
 int LlamaCppNode::PostProcess(
     const std::shared_ptr<DnnNodeOutput> &node_output) {
   if (!rclcpp::ok()) {
@@ -325,9 +296,42 @@ int LlamaCppNode::PostProcess(
   ai_msgs::msg::PerceptionTargets::UniquePtr pub_data(
       new ai_msgs::msg::PerceptionTargets());
   // 3.1 发布检测AI消息
-  ai_msgs::msg::Target target;
-  target.set__type(result);
-  pub_data->targets.emplace_back(std::move(target));
+  if (parser_mode_ == 0) {
+    ai_msgs::msg::Target target;
+    target.set__type(result);
+    pub_data->targets.emplace_back(std::move(target));
+  } else if (parser_mode_ == 1) {
+  
+    auto [class_name, xmin, ymin, xmax, ymax] = parse_detection_string(result);
+    if (xmin < 0) xmin = 0;
+    if (ymin < 0) ymin = 0;
+    if (xmax >= 1000) xmax = 1000 - 1;
+    if (ymax >= 1000) ymax = 1000 - 1;
+
+    xmin = static_cast<int>(static_cast<float>(xmin)  * static_cast<float>(parser_output->img_w) / 1000.0);
+    ymin = static_cast<int>(static_cast<float>(ymin)  * static_cast<float>(parser_output->img_w) / 1000.0);
+    xmax = static_cast<int>(static_cast<float>(xmax)  * static_cast<float>(parser_output->img_w) / 1000.0);
+    ymax = static_cast<int>(static_cast<float>(ymax)  * static_cast<float>(parser_output->img_w) / 1000.0);
+
+    std::stringstream ss;
+    ss << "det rect: " << xmin << " " << ymin << " "
+        << xmax << " " << ymax
+        << ", det type: " << class_name;
+    RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "%s", ss.str().c_str());
+
+    ai_msgs::msg::Roi roi;
+    roi.set__type(class_name);
+    roi.rect.set__x_offset(xmin);
+    roi.rect.set__y_offset(ymin);
+    roi.rect.set__width(xmax - xmin);
+    roi.rect.set__height(ymax - ymin);
+    roi.set__confidence(1.0);
+
+    ai_msgs::msg::Target target;
+    target.set__type(class_name);
+    target.rois.emplace_back(roi);
+    pub_data->targets.emplace_back(std::move(target));
+  }
 
   pub_data->header.set__stamp(parser_output->msg_header->stamp);
   pub_data->header.set__frame_id(parser_output->msg_header->frame_id);
@@ -432,6 +436,9 @@ int LlamaCppNode::FeedFromLocal() {
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id("feedback");
   dnn_output->user_prompt = user_prompt_;
+  if (parser_mode_ == 1) {
+    dnn_output->user_prompt = "Please provide the bounding box coordinate of the region this sentence describes: <ref>" + user_prompt_ + "</ref>";
+  }
 
   // 3. 开始预测
   if (Run(inputs, dnn_output, true) != 0) {
@@ -499,6 +506,7 @@ void LlamaCppNode::RosImgProcess(
   // 2. 存储上面两个DNNTensor
   // inputs将会作为模型的输入通过InferTask接口传入
   auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image};
+  dnn_output->img_w = (img_msg->width > img_msg->height) ? img_msg->width : img_msg->height;
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id(img_msg->header.frame_id);
   dnn_output->msg_header->set__stamp(img_msg->header.stamp);
@@ -508,6 +516,9 @@ void LlamaCppNode::RosImgProcess(
   dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
   dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
   dnn_output->user_prompt = user_prompt_;
+  if (parser_mode_ == 1) {
+    dnn_output->user_prompt = "Please provide the bounding box coordinate of the region this sentence describes: <ref>" + user_prompt_ + "</ref>";
+  }
 
   // 3. 开始预测
   int ret = Run(inputs, dnn_output, false);
@@ -549,6 +560,9 @@ void LlamaCppNode::SharedMemImgProcess(
       return;
     }
     dnn_output->user_prompt = user_prompt_;
+    if (parser_mode_ == 1) {
+      dnn_output->user_prompt = "Please provide the bounding box coordinate of the region this sentence describes: <ref>" + user_prompt_ + "</ref>";
+    }
     user_prompt_ = "";
   }
   {
@@ -595,6 +609,7 @@ void LlamaCppNode::SharedMemImgProcess(
 
   // 2. 初始化输出
   auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image};
+  dnn_output->img_w = (img_msg->width > img_msg->height) ? img_msg->width : img_msg->height;
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id(std::to_string(img_msg->index));
   dnn_output->msg_header->set__stamp(img_msg->time_stamp);
@@ -948,6 +963,7 @@ int LlamaCppNode::Chat() {
   bool start = true;
   running_ = true;
   std::string sub_string = "";
+  std::string result_string = "";
   std::vector<std::string> his_strings;
   bool is_repeat = false;
   bool init_status = false;
@@ -994,31 +1010,6 @@ int LlamaCppNode::Chat() {
                   path_session.clear();
               }
           } 
-          // else {
-          //     // std::cout << "111 ga_n != 1 " << std::endl;
-
-          //     // context extension via Self-Extend
-          //     while (n_past >= ga_i + ga_w) {
-          //         const int ib = (ga_n*ga_i)/ga_w;
-          //         const int bd = (ga_w/ga_n)*(ga_n - 1);
-          //         const int dd = (ga_w/ga_n) - ib*bd - ga_w;
-
-          //         LOG_DBG("\n");
-          //         LOG_DBG("shift: [%6d, %6d] + %6d -> [%6d, %6d]\n", ga_i, n_past, ib*bd, ga_i + ib*bd, n_past + ib*bd);
-          //         LOG_DBG("div:   [%6d, %6d] / %6d -> [%6d, %6d]\n", ga_i + ib*bd, ga_i + ib*bd + ga_w, ga_n, (ga_i + ib*bd)/ga_n, (ga_i + ib*bd + ga_w)/ga_n);
-          //         LOG_DBG("shift: [%6d, %6d] + %6d -> [%6d, %6d]\n", ga_i + ib*bd + ga_w, n_past + ib*bd, dd, ga_i + ib*bd + ga_w + dd, n_past + ib*bd + dd);
-
-          //         llama_kv_cache_seq_add(ctx, 0, ga_i,                n_past,              ib*bd);
-          //         llama_kv_cache_seq_div(ctx, 0, ga_i + ib*bd,        ga_i + ib*bd + ga_w, ga_n);
-          //         llama_kv_cache_seq_add(ctx, 0, ga_i + ib*bd + ga_w, n_past + ib*bd,      dd);
-
-          //         n_past -= bd;
-
-          //         ga_i += ga_w/ga_n;
-
-          //         LOG_DBG("\nn_past_old = %d, n_past = %d, ga_i = %d\n\n", n_past + bd, n_past, ga_i);
-          //     }
-          // }
 
           // try to reuse a matching prefix from the loaded session instead of re-eval (via n_past)
           if (n_session_consumed < (int) session_tokens.size()) {
@@ -1126,6 +1117,7 @@ int LlamaCppNode::Chat() {
               std::string filtered = filterChineseAndPunctuation(token_str, hasChinese, hasPunctuation);
 
               sub_string += filtered;
+              result_string += token_str;
               if (hasPunctuation) {
                 for (int j = 0; j < his_strings.size(); j++) {
                   // if (sub_string.size() >= 4 && his_strings[j] == sub_string) {
@@ -1265,6 +1257,15 @@ int LlamaCppNode::Chat() {
                 std::unique_lock<std::mutex> lg(mtx_llm_);
                 task_permission_ = false;
                 sub_string = "";
+                if (!result_string.empty()) {
+                  ai_msgs::msg::PerceptionTargets::UniquePtr pub_data(
+                    new ai_msgs::msg::PerceptionTargets());
+                  ai_msgs::msg::Target target;
+                  target.set__type(result_string);
+                  pub_data->targets.emplace_back(std::move(target));
+                  ai_msg_publisher_->publish(std::move(pub_data));
+                }
+                result_string = "";
                 his_strings.clear();
                 lg.unlock();
               }

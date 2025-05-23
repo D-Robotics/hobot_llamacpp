@@ -35,13 +35,13 @@ def generate_launch_description():
         "llamacpp_image_height", default_value=TextSubstitution(text="1080")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_v2.bin")
+        "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_VL3_2B.hbm")
     )
     gguf_file_name_launch_arg = DeclareLaunchArgument(
-        "llamacpp_gguf_model_file_name", default_value=TextSubstitution(text="Qwen2.5-0.5B-Instruct-Q4_0.gguf")
+        "llamacpp_gguf_model_file_name", default_value=TextSubstitution(text="qwen2_5_1.5b_q8_0_InternVL3_2B.gguf")
     )
     user_prompt_launch_arg = DeclareLaunchArgument(
-        "llamacpp_user_prompt", default_value=TextSubstitution(text="")
+        "llamacpp_user_prompt", default_value=TextSubstitution(text="panda")
     )
     system_prompt_launch_arg = DeclareLaunchArgument(
         "llamacpp_system_prompt", default_value=TextSubstitution(text="You are a helpful assistant.")
@@ -251,7 +251,8 @@ def generate_launch_description():
         launch_arguments={
             'websocket_image_topic': '/image',
             'websocket_image_type': 'mjpeg',
-            'websocket_only_show_image': 'True'
+            'websocket_smart_topic': 'llama_cpp_node',
+            'websocket_only_show_image': 'False'
         }.items()
     )
 
@@ -263,8 +264,7 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
-            {"llm_threads": 6},
-            {"user_prompt": LaunchConfiguration('llamacpp_user_prompt')},
+            {"llm_threads": 3},
             {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
             {"pre_infer": LaunchConfiguration('llamacpp_advance')},
             {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
@@ -300,7 +300,7 @@ def generate_launch_description():
             # 启动零拷贝环境配置node
             shared_mem_node,
             # asr 节点
-            delayed_asr_node,
+            # delayed_asr_node,
             # 图片发布pkg
             cam_node,
             # 图片编解码&发布pkg
@@ -308,7 +308,7 @@ def generate_launch_description():
             # 启动llamacpp pkg
             llama_node,
             # 启动 tts pkg
-            tts_node,
+            # tts_node,
             # 启动web展示pkg
             web_node
         ])
@@ -329,7 +329,7 @@ def generate_launch_description():
             # 启动零拷贝环境配置node
             shared_mem_node,
             # asr 节点
-            delayed_asr_node,
+            # delayed_asr_node,
             # 图片发布pkg
             cam_node,
             # 图片编解码&发布pkg
@@ -337,7 +337,7 @@ def generate_launch_description():
             # 启动llamacpp pkg
             llama_node,
             # 启动 tts pkg
-            tts_node,
+            # tts_node,
             # 启动web展示pkg
             web_node
         ])
