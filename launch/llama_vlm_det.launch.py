@@ -265,6 +265,7 @@ def generate_launch_description():
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
             {"llm_threads": 3},
+            {"parser_mode": 1},
             {"system_prompt": LaunchConfiguration('llamacpp_system_prompt')},
             {"pre_infer": LaunchConfiguration('llamacpp_advance')},
             {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},

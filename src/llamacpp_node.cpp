@@ -308,29 +308,32 @@ int LlamaCppNode::PostProcess(
     if (xmax >= 1000) xmax = 1000 - 1;
     if (ymax >= 1000) ymax = 1000 - 1;
 
-    xmin = static_cast<int>(static_cast<float>(xmin)  * static_cast<float>(parser_output->img_w) / 1000.0);
-    ymin = static_cast<int>(static_cast<float>(ymin)  * static_cast<float>(parser_output->img_w) / 1000.0);
-    xmax = static_cast<int>(static_cast<float>(xmax)  * static_cast<float>(parser_output->img_w) / 1000.0);
-    ymax = static_cast<int>(static_cast<float>(ymax)  * static_cast<float>(parser_output->img_w) / 1000.0);
+    if (xmax != 0 && ymax != 0) {
 
-    std::stringstream ss;
-    ss << "det rect: " << xmin << " " << ymin << " "
-        << xmax << " " << ymax
-        << ", det type: " << class_name;
-    RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "%s", ss.str().c_str());
+      xmin = static_cast<int>(static_cast<float>(xmin)  * static_cast<float>(parser_output->img_w) / 1000.0);
+      ymin = static_cast<int>(static_cast<float>(ymin)  * static_cast<float>(parser_output->img_w) / 1000.0);
+      xmax = static_cast<int>(static_cast<float>(xmax)  * static_cast<float>(parser_output->img_w) / 1000.0);
+      ymax = static_cast<int>(static_cast<float>(ymax)  * static_cast<float>(parser_output->img_w) / 1000.0);
 
-    ai_msgs::msg::Roi roi;
-    roi.set__type(class_name);
-    roi.rect.set__x_offset(xmin);
-    roi.rect.set__y_offset(ymin);
-    roi.rect.set__width(xmax - xmin);
-    roi.rect.set__height(ymax - ymin);
-    roi.set__confidence(1.0);
+      std::stringstream ss;
+      ss << "det rect: " << xmin << " " << ymin << " "
+          << xmax << " " << ymax
+          << ", det type: " << class_name;
+      RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "%s", ss.str().c_str());
 
-    ai_msgs::msg::Target target;
-    target.set__type(class_name);
-    target.rois.emplace_back(roi);
-    pub_data->targets.emplace_back(std::move(target));
+      ai_msgs::msg::Roi roi;
+      roi.set__type(class_name);
+      roi.rect.set__x_offset(xmin);
+      roi.rect.set__y_offset(ymin);
+      roi.rect.set__width(xmax - xmin);
+      roi.rect.set__height(ymax - ymin);
+      roi.set__confidence(1.0);
+
+      ai_msgs::msg::Target target;
+      target.set__type(class_name);
+      target.rois.emplace_back(roi);
+      pub_data->targets.emplace_back(std::move(target)); 
+    }
   }
 
   pub_data->header.set__stamp(parser_output->msg_header->stamp);
@@ -475,6 +478,25 @@ void LlamaCppNode::RosImgProcess(
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_start.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_start.nanosec = time_now.tv_nsec;
+
+  {
+    std::unique_lock<std::mutex> lg(mtx_text_);
+    if (user_prompt_ == "") {
+      return;
+    }
+    dnn_output->user_prompt = user_prompt_;
+    if (parser_mode_ == 1) {
+      dnn_output->user_prompt = "Please provide the bounding box coordinate of the region this sentence describes: <ref>" + user_prompt_ + "</ref>";
+    }
+    user_prompt_ = "";
+  }
+  {
+    std::unique_lock<std::mutex> lg(mtx_llm_);
+    if (!task_permission_) {
+      return;  // 直接返回，不等
+    }
+    task_permission_ = false;  // 占用
+  }
 
   // 1. 将图片处理成模型输入数据类型DNNTensor
   auto model = GetModel();
