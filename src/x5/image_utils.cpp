@@ -26,7 +26,8 @@ std::shared_ptr<DNNTensor> ImageUtils::GetBGRTensorFromBGR(
                                           const cv::Mat &bgr_mat_tmp,                                                     
                                           int scaled_img_height,
                                           int scaled_img_width,
-                                          hbDNNTensorProperties &tensor_properties) {
+                                          hbDNNTensorProperties &tensor_properties,
+                                          int model_type) {
   cv::Mat bgr_mat;
   bgr_mat_tmp.copyTo(bgr_mat);
   cv::Mat pixel_values_mat;
@@ -60,15 +61,22 @@ std::shared_ptr<DNNTensor> ImageUtils::GetBGRTensorFromBGR(
   cv::cvtColor(mat_tmp, mat_tmp, cv::COLOR_BGR2RGB);
   mat_tmp /= 255.0;
 
-  cv::Scalar mean(0.485, 0.456, 0.406);  // BGR 通道均值
-  cv::Scalar std(0.229, 0.224, 0.225);   // BGR 通道标准差
-
   // 按通道减去均值，再除以标准差
   std::vector<cv::Mat> channels(3);
   cv::split(mat_tmp, channels);  // 分离通道
 
-  for (int i = 0; i < 3; i++) {
-    channels[i] = (channels[i] - mean[i]) / std[i];
+  if (model_type == 0) {
+    cv::Scalar mean(0.485, 0.456, 0.406);  // BGR 通道均值
+    cv::Scalar std(0.229, 0.224, 0.225);   // BGR 通道标准差
+    for (int i = 0; i < 3; i++) {
+      channels[i] = (channels[i] - mean[i]) / std[i];
+    }
+  } else if (model_type == 1) {
+    cv::Scalar mean(0.5, 0.5, 0.5);
+    cv::Scalar std(0.5, 0.5, 0.5); 
+    for (int i = 0; i < 3; i++) {
+      channels[i] = (channels[i] - mean[i]) / std[i];
+    }
   }
 
   // 合并通道

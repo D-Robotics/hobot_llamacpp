@@ -84,19 +84,24 @@ std::string filterChineseAndPunctuation(const std::string& input, bool& hasChine
 
 class CLI {
  public:
-  static bool internvl2_eval_image_embed(llama_context * ctx_llama, const struct llava_image_embed * image_embed,
-                                         int n_batch, int * n_past, int * st_pos_id);
+  static struct llama_model * llava_init(common_params * params);
+  static struct llava_context * llava_init_context(common_params * params, llama_model * model);
+  static void process_system_prompt(struct llava_context * ctx_llava, common_params * params, const std::string & sprompt);
+  static void llava_free(struct llava_context * ctx_llava);
+  static void internvl2_process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher);
+  static void smolvlm2_process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher);
+
+ private:
   static bool eval_tokens(struct llama_context * ctx_llama, std::vector<llama_token> tokens, int n_batch, int * n_past, int * st_pos_id);
   static bool eval_id(struct llama_context * ctx_llama, int id, int * n_past, int * st_pos_id);
   static bool eval_string(struct llama_context * ctx_llama, const char* str, int n_batch, int * n_past, int * st_pos_id, bool add_bos);
   static const char * sample(struct common_sampler * smpl,
                              struct llama_context * ctx_llama,
                              int * n_past, int * st_pos_id);
-  static void process_system_prompt(struct llava_context * ctx_llava, common_params * params, const std::string & sprompt);
-  static void process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher);
-  static struct llama_model * llava_init(common_params * params);
-  static struct llava_context * llava_init_context(common_params * params, llama_model * model);
-  static void llava_free(struct llava_context * ctx_llava);
+  static bool internvl2_eval_image_embed(llama_context * ctx_llama, const struct llava_image_embed * image_embed,
+                                         int n_batch, int * n_past, int * st_pos_id);
+  static bool smolvlm2_eval_image_embed(llama_context * ctx_llama, const struct llava_image_embed * image_embed,
+                                         int n_batch, int * n_past, int * st_pos_id);
 };
 
 #endif  // CLI_H_

@@ -76,6 +76,47 @@ bool CLI::internvl2_eval_image_embed(llama_context * ctx_llama, const struct lla
   return true;
 }
 
+bool CLI::smolvlm2_eval_image_embed(llama_context * ctx_llama, const struct llava_image_embed * image_embed,
+                                   int n_batch, int * n_past, int * st_pos_id) {
+  int n_embd = llama_model_n_embd(llama_get_model(ctx_llama));
+  auto img_tokens = image_embed->n_image_pos;  // 64 for SmolVLM2
+  
+  // SmolVLM2: 简单地按顺序处理视觉嵌入，不需要复杂的 mRoPE
+  for (int i = 0; i < img_tokens; i += n_batch) {
+      int n_eval = img_tokens - i;
+      if (n_eval > n_batch) {
+          n_eval = n_batch;
+      }
+
+      // 为当前批次准备位置数据
+      std::vector<llama_pos> batch_pos(n_eval);
+      for (int j = 0; j < n_eval; j++) {
+          batch_pos[j] = *st_pos_id + j;
+      }
+      
+      // 构造批次
+      llama_batch batch = {
+          int32_t(n_eval),                      // n_tokens
+          nullptr,                              // token
+          (image_embed->embed + i * n_embd),    // embed
+          batch_pos.data(),                     // pos
+          nullptr,                              // n_seq_id
+          nullptr,                              // seq_id
+          nullptr,                              // logits
+      };
+      
+      if (llama_decode(ctx_llama, batch)) {
+          LOG_ERR("%s : failed to eval\n", __func__);
+          return false;
+      }
+      
+      *n_past += n_eval;
+      *st_pos_id += n_eval;
+  }
+  
+  return true;
+}
+
 bool CLI::eval_tokens(struct llama_context * ctx_llama, std::vector<llama_token> tokens, int n_batch, int * n_past, int * st_pos_id) {
   int N = (int) tokens.size();
   std::vector<llama_pos> pos;
@@ -199,7 +240,7 @@ std::string filterChineseAndPunctuation(const std::string& input, bool& hasChine
   return result;
 }
 
-void CLI::process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher) {
+void CLI::internvl2_process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher) {
   int n_past = 0;
   int cur_pos_id = 0;
 
@@ -262,6 +303,81 @@ void CLI::process_prompt(struct llava_context * ctx_llava, struct llava_image_em
       fflush(stdout);
   }
 
+  common_sampler_free(smpl);
+  LOG("\n");
+}
+
+void CLI::smolvlm2_process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt, std::string &response, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher) {
+  int n_past = 0;
+  int cur_pos_id = 0;
+  
+  const int max_tgt_len = params->n_predict < 0 ? 256 : params->n_predict;
+  
+  // 处理用户输入
+  std::string user_input = prompt;
+  if (user_input.empty()) {
+      user_input = "describe the image in detail.";
+  }
+  
+  // SmolVLM2 官方模板格式（简化版，单图对话）
+  // <|im_start|>User: <image>{user_input}<end_of_utterance>\nAssistant:
+  std::string full_prompt = "<|im_start|>User: ";
+  std::string image_placeholder = "<image>";
+  std::string user_message_end = user_input + "<end_of_utterance>\nAssistant:";
+  
+  if (params->verbose_prompt) {
+      LOG_INF("\n=== Tokenization details ===\n");
+      
+      LOG_INF("Part 1 tokens:\n");
+      auto tmp = common_tokenize(ctx_llava->ctx_llama, full_prompt, true, true);
+      for (int i = 0; i < (int) tmp.size(); i++) {
+          LOG_INF("%6d -> '%s'\n", tmp[i], common_token_to_piece(ctx_llava->ctx_llama, tmp[i]).c_str());
+      }
+      
+      LOG_INF("\nPart 3 tokens:\n");
+      tmp = common_tokenize(ctx_llava->ctx_llama, user_message_end, false, true);
+      for (int i = 0; i < (int) tmp.size(); i++) {
+          LOG_INF("%6d -> '%s'\n", tmp[i], common_token_to_piece(ctx_llava->ctx_llama, tmp[i]).c_str());
+      }
+  }
+  
+  // 1. 评估开始部分 "<|im_start|>User: "
+  eval_string(ctx_llava->ctx_llama, full_prompt.c_str(), params->n_batch, &n_past, &cur_pos_id, true);
+  
+  // 2. 插入图像嵌入（对应 <image> 占位符）
+  if (image_embed != nullptr) {
+      LOG_INF("\nInserting image embedding at position %d\n", cur_pos_id);
+      smolvlm2_eval_image_embed(ctx_llava->ctx_llama, image_embed, params->n_batch, &n_past, &cur_pos_id);
+  }
+  
+  // 3. 评估用户输入和助手开始标记
+  eval_string(ctx_llava->ctx_llama, user_message_end.c_str(), params->n_batch, &n_past, &cur_pos_id, false);
+
+  struct common_sampler * smpl = common_sampler_init(ctx_llava->model, params->sampling);
+  if (!smpl) {
+      LOG_ERR("%s: failed to initialize sampling subsystem\n", __func__);
+      exit(1);
+  }
+  
+  for (int i = 0; i < max_tgt_len; i++) {
+      const char * tmp = sample(smpl, ctx_llava->ctx_llama, &n_past, &cur_pos_id);
+      response += tmp;
+      
+      // SmolVLM2 的停止条件（保持原有的截断逻辑）
+      if (strcmp(tmp, "</s>") == 0) break;
+      if (strstr(response.c_str(), "<end_of_utterance>")) break;  // 官方结束标记
+      if (strstr(response.c_str(), "<|im_start|>")) break;  // 防止生成新对话
+      if (strstr(response.c_str(), "User:")) break;  // 防止生成新的用户输入
+      if (strstr(response.c_str(), "Assistant:")) break;  // 防止重复助手标记
+      
+      std_msgs::msg::String::UniquePtr pub_string(new std_msgs::msg::String());  
+      pub_string->data = tmp;
+      publisher->publish(std::move(pub_string));
+
+      LOG("%s", tmp);
+      fflush(stdout);
+  }
+  
   common_sampler_free(smpl);
   LOG("\n");
 }

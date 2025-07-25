@@ -72,6 +72,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
     : DnnNode(node_name, options) {
   // 更新配置
   this->declare_parameter<int>("feed_type", feed_type_);
+  this->declare_parameter<int>("model_type", model_type_);
   this->declare_parameter<std::string>("image", image_file_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<int>("llm_threads", llm_threads_);
@@ -91,6 +92,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
                                        ros_string_sub_topic_name_);
 
   this->get_parameter<int>("feed_type", feed_type_);
+  this->get_parameter<int>("model_type", model_type_);
   this->get_parameter<std::string>("image", image_file_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<int>("llm_threads", llm_threads_);
@@ -111,6 +113,7 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
        << "\n feed_type(0:local, 1:sub): " << feed_type_
        << "\n image: " << image_file_
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
+       << "\n model_type(0:internvl, 1:smolvlm): " << model_type_
        << "\n llm_threads: " << llm_threads_
        << "\n llm_model_name: " << llm_model_name_
        << "\n model_file_name: " << model_file_name_
@@ -141,6 +144,16 @@ LlamaCppNode::LlamaCppNode(const std::string &node_name,
         model_name_ = GetModel()->GetName();
         RCLCPP_WARN(rclcpp::get_logger("llama_cpp_node"), "Get model name: %s from load model.", model_name_.c_str());
       }
+    }
+
+    // 加载模型后查询模型输入分辨率
+    if (GetModelInputSize(0, model_input_width_, model_input_height_) < 0) {
+      RCLCPP_ERROR(rclcpp::get_logger("llama_cpp_node"), "Get model input size fail!");
+    } else {
+      RCLCPP_INFO(rclcpp::get_logger("llama_cpp_node"),
+                  "The model input width is %d and height is %d",
+                  model_input_width_,
+                  model_input_height_);
     }
 
     parser_ = std::make_shared<LlamaCppParser>(llm_model_name_, system_prompt_, llm_threads_);
@@ -304,7 +317,7 @@ int LlamaCppNode::PostProcess(
   // 2. 模型后处理解析
   std::string result = "";
   parser_->Init(system_prompt_);
-  parser_->Parse(parser_output->user_prompt, parser_output->output_tensors, result, output_msg_publisher_);
+  parser_->Parse(parser_output->user_prompt, parser_output->output_tensors, result, output_msg_publisher_, model_type_);
   if (parser_output) {
     std::stringstream ss;
     ss << result;
@@ -412,7 +425,7 @@ int LlamaCppNode::FeedFromLocal() {
 
   cv::Mat bgr_mat = cv::imread(image_file_, cv::IMREAD_COLOR);
   tensor_image = ImageUtils::GetBGRTensorFromBGR(bgr_mat,
-      model_input_height_, model_input_width_, tensor_properties);
+      model_input_height_, model_input_width_, tensor_properties, model_type_);
 
   if (!tensor_image) {
     RCLCPP_ERROR(rclcpp::get_logger("ClipImageNode"),
@@ -478,17 +491,17 @@ void LlamaCppNode::RosImgProcess(
     auto cv_img =
         cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
     tensor_image = ImageUtils::GetBGRTensorFromBGR(cv_img->image,
-          model_input_height_, model_input_width_, tensor_properties);
+          model_input_height_, model_input_width_, tensor_properties, model_type_);
   } else if ("bgr8" == img_msg->encoding) {
     auto cv_img =
         cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
     tensor_image = ImageUtils::GetBGRTensorFromBGR(cv_img->image,
-          model_input_height_, model_input_width_, tensor_properties);
+          model_input_height_, model_input_width_, tensor_properties, model_type_);
   } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
     cv::Mat bgr_mat;
     hobot::dnn_node::ImageProc::Nv12ToBGR(reinterpret_cast<const char *>(img_msg->data.data()), img_msg->height, img_msg->width, bgr_mat);
     tensor_image = ImageUtils::GetBGRTensorFromBGR(bgr_mat,
-          model_input_height_, model_input_width_, tensor_properties);
+          model_input_height_, model_input_width_, tensor_properties, model_type_);
   }
 
   if (!tensor_image) {
@@ -569,7 +582,7 @@ void LlamaCppNode::SharedMemImgProcess(
     cv::Mat bgr_mat;
     hobot::dnn_node::ImageProc::Nv12ToBGR(reinterpret_cast<const char *>(img_msg->data.data()), img_msg->height, img_msg->width, bgr_mat);
     tensor_image = ImageUtils::GetBGRTensorFromBGR(bgr_mat,
-                    model_input_height_, model_input_width_, tensor_properties);
+                    model_input_height_, model_input_width_, tensor_properties, model_type_);
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("llama_cpp_node"),
                  "Unsupported img encoding: %s, only nv12 img encoding is "
@@ -948,6 +961,7 @@ int LlamaCppNode::Chat() {
   bool start = true;
   running_ = true;
   std::string sub_string = "";
+  std::string result = "";
   std::vector<std::string> his_strings;
   bool is_repeat = false;
   bool init_status = false;
@@ -993,32 +1007,7 @@ int LlamaCppNode::Chat() {
                   LOG_DBG("clear session path\n");
                   path_session.clear();
               }
-          } 
-          // else {
-          //     // std::cout << "111 ga_n != 1 " << std::endl;
-
-          //     // context extension via Self-Extend
-          //     while (n_past >= ga_i + ga_w) {
-          //         const int ib = (ga_n*ga_i)/ga_w;
-          //         const int bd = (ga_w/ga_n)*(ga_n - 1);
-          //         const int dd = (ga_w/ga_n) - ib*bd - ga_w;
-
-          //         LOG_DBG("\n");
-          //         LOG_DBG("shift: [%6d, %6d] + %6d -> [%6d, %6d]\n", ga_i, n_past, ib*bd, ga_i + ib*bd, n_past + ib*bd);
-          //         LOG_DBG("div:   [%6d, %6d] / %6d -> [%6d, %6d]\n", ga_i + ib*bd, ga_i + ib*bd + ga_w, ga_n, (ga_i + ib*bd)/ga_n, (ga_i + ib*bd + ga_w)/ga_n);
-          //         LOG_DBG("shift: [%6d, %6d] + %6d -> [%6d, %6d]\n", ga_i + ib*bd + ga_w, n_past + ib*bd, dd, ga_i + ib*bd + ga_w + dd, n_past + ib*bd + dd);
-
-          //         llama_kv_cache_seq_add(ctx, 0, ga_i,                n_past,              ib*bd);
-          //         llama_kv_cache_seq_div(ctx, 0, ga_i + ib*bd,        ga_i + ib*bd + ga_w, ga_n);
-          //         llama_kv_cache_seq_add(ctx, 0, ga_i + ib*bd + ga_w, n_past + ib*bd,      dd);
-
-          //         n_past -= bd;
-
-          //         ga_i += ga_w/ga_n;
-
-          //         LOG_DBG("\nn_past_old = %d, n_past = %d, ga_i = %d\n\n", n_past + bd, n_past, ga_i);
-          //     }
-          // }
+          }
 
           // try to reuse a matching prefix from the loaded session instead of re-eval (via n_past)
           if (n_session_consumed < (int) session_tokens.size()) {
@@ -1126,6 +1115,7 @@ int LlamaCppNode::Chat() {
               std::string filtered = filterChineseAndPunctuation(token_str, hasChinese, hasPunctuation);
 
               sub_string += filtered;
+              result += filtered;
               if (hasPunctuation) {
                 for (int j = 0; j < his_strings.size(); j++) {
                   // if (sub_string.size() >= 4 && his_strings[j] == sub_string) {
@@ -1232,6 +1222,19 @@ int LlamaCppNode::Chat() {
 
           if (n_past > 0 && is_interacting) {
               LOG_DBG("waiting for user input\n");
+              // 发布完整语言推理结果消息
+              ai_msgs::msg::PerceptionTargets::UniquePtr pub_data(
+                new ai_msgs::msg::PerceptionTargets());
+              
+              ai_msgs::msg::Target target;
+              target.set__type(result);
+              pub_data->targets.emplace_back(std::move(target));
+              
+              struct timespec time_end = {0, 0};
+              clock_gettime(CLOCK_REALTIME, &time_end);
+              pub_data->header.set__stamp(ConvertToRosTime(time_end));
+              ai_msg_publisher_->publish(std::move(pub_data));
+              result = "";
 
               if (params.conversation_mode) {
                   LOG("\n> ");

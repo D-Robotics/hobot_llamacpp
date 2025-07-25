@@ -59,7 +59,8 @@ int32_t LlamaCppParser::Parse(
                 const std::string &user_prompt,
                 std::vector<std::shared_ptr<DNNTensor>> &output_tensors,
                 std::string &result,
-                rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher) {
+                rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher,
+                int model_type) {
 
   ggml_time_init();
   params.prompt = user_prompt;
@@ -71,7 +72,13 @@ int32_t LlamaCppParser::Parse(
   }
 
   // process the prompt
-  CLI::process_prompt(ctx_llava_, image_embed, &params, params.prompt, result, publisher);
+  if (model_type == 0) {
+    CLI::internvl2_process_prompt(ctx_llava_, image_embed, &params, params.prompt, result, publisher);
+  } else if (model_type == 1) {
+    CLI::smolvlm2_process_prompt(ctx_llava_, image_embed, &params, params.prompt, result, publisher);
+  } else {
+    return -1;
+  }
 
   llama_perf_context_print(ctx_llava_->ctx_llama);
   free(image_embed);
