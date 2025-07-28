@@ -52,7 +52,7 @@ def generate_launch_description():
         "audio_asr_model", default_value=TextSubstitution(text="sense-voice-small-fp16.gguf")
     )
     audio_device_launch_arg = DeclareLaunchArgument(
-        "audio_device", default_value=TextSubstitution(text="hw:0,0")
+        "audio_device", default_value=TextSubstitution(text="plughw:0,0")
     )
 
     camera_type = os.getenv('CAM_TYPE')

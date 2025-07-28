@@ -42,7 +42,8 @@ class LlamaCppParser {
       const std::string &user_prompt,
       std::vector<std::shared_ptr<DNNTensor>> &output_tensors,
       std::string &result,
-      rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher);
+      rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher,
+      int model_type = 0);
 
   struct llava_image_embed * GetEmbedding(std::vector<std::shared_ptr<DNNTensor>> &tensors);
 

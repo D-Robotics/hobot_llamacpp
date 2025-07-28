@@ -33,6 +33,9 @@ def generate_launch_description():
     image_height_launch_arg = DeclareLaunchArgument(
         "llamacpp_image_height", default_value=TextSubstitution(text="1080")
     )
+    model_type_launch_arg = DeclareLaunchArgument(
+        "llamacpp_model_type", default_value=TextSubstitution(text="0")
+    )
     model_file_name_launch_arg = DeclareLaunchArgument(
         "llamacpp_vit_model_file_name", default_value=TextSubstitution(text="vit_model_int16_v2.bin")
     )
@@ -58,7 +61,7 @@ def generate_launch_description():
         "audio_asr_model", default_value=TextSubstitution(text="sense-voice-small-fp16.gguf")
     )
     audio_device_launch_arg = DeclareLaunchArgument(
-        "audio_device", default_value=TextSubstitution(text="hw:0,0")
+        "audio_device", default_value=TextSubstitution(text="plughw:0,0")
     )
 
     camera_type = os.getenv('CAM_TYPE')
@@ -264,6 +267,7 @@ def generate_launch_description():
             {"cute_words": "好的,让我看看;没问题,我想想;容我思考片刻;小事一桩;收到,我的主人"},
             {"text_msg_pub_topic_name": LaunchConfiguration('llamacpp_text_msg_pub_name')},
             {"ros_string_sub_topic_name": LaunchConfiguration('llamacpp_prompt_msg_sub_name')},
+            {"model_type": LaunchConfiguration('llamacpp_model_type')},
             {"model_file_name": LaunchConfiguration('llamacpp_vit_model_file_name')},
             {"llm_model_name": LaunchConfiguration('llamacpp_gguf_model_file_name')}
         ],
@@ -282,6 +286,7 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
+            model_type_launch_arg,
             model_file_name_launch_arg,
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,
@@ -311,6 +316,7 @@ def generate_launch_description():
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
+            model_type_launch_arg,
             model_file_name_launch_arg,
             gguf_file_name_launch_arg,
             user_prompt_launch_arg,

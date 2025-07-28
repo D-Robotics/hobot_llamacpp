@@ -48,7 +48,8 @@ class ImageUtils {
         const cv::Mat &bgr_mat_tmp,
         int scaled_img_height,
         int scaled_img_width,
-        hbDNNTensorProperties &tensor_properties);
+        hbDNNTensorProperties &tensor_properties,
+        int model_type = 0);
 };
 
 #endif  // IMAGE_UTILS_H
