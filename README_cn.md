@@ -309,7 +309,7 @@ export CAM_TYPE=mipi
 ros2 launch hobot_llamacpp llama_vlm.launch.py llamacpp_model_type:=1 llamacpp_vit_model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_MLP_C1_UP_X5.bin llamacpp_gguf_model_file_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf audio_device:="plughw:1,0"
 ```
 
-## Linux系统上运行
+### X5 Linux系统上运行
 
 ```shell
 export ROS_LOG_DIR=/userdata/
@@ -327,6 +327,45 @@ cp -r install/lib/hobot_llamacpp/config/ .
 ./install/lib/hobot_llamacpp/hobot_llamacpp --ros-args -p feed_type:=1 -p model_type:=1 --log-level warn -p ros_string_sub_topic_name:="/prompt_text" -p model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_MLP_C1_UP_X5.bin -p llm_model_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf
 
 ros2 topic pub --once /prompt_text std_msgs/msg/String "{data: 'Describe the image in one sentence.'}"
+```
+
+### RDK S100 Ubuntu系统上运行
+
+运行方式1, 使用可执行文件启动：
+```shell
+export COLCON_CURRENT_PREFIX=./install
+source /opt/ros/humble/setup.bash
+source ./install/setup.bash
+# config中为示例使用的模型, 回灌使用的本地图片
+# 根据实际安装路径进行拷贝（docker中的安装路径为install/lib/hobot_llamacpp/config/, 拷贝命令为cp -r install/lib/hobot_llamacpp/config/ .）。
+cp -r install/lib/hobot_llamacpp/config/ .
+
+# 运行模式1：
+# 使用本地jpg格式图片进行回灌预测, 输入自定义用户提示词
+ros2 run hobot_llamacpp hobot_llamacpp --ros-args -p feed_type:=0 -p model_type:=1 -p image:=config/image2.jpg -p image_type:=0 -p user_prompt:="Describe the image in one sentence." -p model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm -p llm_model_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf
+
+# 运行模式2：
+# 使用订阅到的image msg(topic为/image)进行预测, 设置受控话题名(/prompt_text)为并设置log级别为warn。同时在另一个窗口发送string话题(topic为/prompt_text) 变更用户提示词
+ros2 run hobot_llamacpp hobot_llamacpp --ros-args -p feed_type:=1 -p model_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/prompt_text" -p model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm -p llm_model_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf
+
+ros2 topic pub --once /prompt_text std_msgs/msg/String "{data: 'Describe the image in one sentence.'}"
+```
+
+运行方式2, 使用launch文件启动：
+```shell
+export COLCON_CURRENT_PREFIX=./install
+source /opt/ros/humble/setup.bash
+source ./install/setup.bash
+# config中为示例使用的模型, 根据实际安装路径进行拷贝
+# 如果是板端编译（无--merge-install编译选项）, 拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ ., 其中PKG_NAME为具体的package名。
+
+# config中为示例使用的系统提示词
+cp -r install/lib/hobot_llamacpp/config/ .
+# 配置MIPI摄像头
+export CAM_TYPE=mipi
+
+# 启动launch文件, 通过shared mem方式发布nv12格式图片
+ros2 launch hobot_llamacpp llama_vlm.launch.py llamacpp_model_type:=1 llamacpp_vit_model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm llamacpp_gguf_model_file_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf audio_device:="plughw:1,0"
 ```
 
 ## 语言大模型

@@ -1,5 +1,9 @@
 # Changelog for package hobot_dosod
 
+tros_0.4.0 (2025-07-25)
+------------------
+1. 新增 RDK S100 适配 smolvlm2 模型。
+
 tros_0.3.0 (2025-07-25)
 ------------------
 1. 新增 smolvlm2 模型适配, 支持图片回灌、订阅模式。
