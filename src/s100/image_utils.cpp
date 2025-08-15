@@ -59,6 +59,10 @@ std::shared_ptr<DNNTensor> ImageUtils::GetBGRTensorFromBGR(
   cv::cvtColor(mat_tmp, mat_tmp, cv::COLOR_BGR2RGB);
   mat_tmp /= 255.0;
 
+  // 按通道减去均值，再除以标准差
+  std::vector<cv::Mat> channels(3);
+  cv::split(mat_tmp, channels);  // 分离通道
+
   if (model_type == 0) {
     cv::Scalar mean(0.485, 0.456, 0.406);  // BGR 通道均值
     cv::Scalar std(0.229, 0.224, 0.225);   // BGR 通道标准差

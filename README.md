@@ -235,7 +235,7 @@ ros2 launch hobot_llamacpp llama_vlm.launch.py llamacpp_vit_model_file_name:=vit
 
 - [Language Encoder and Decoder](https://huggingface.co/D-Robotics/SmolVLM2-256M-Video-Instruct-GGUF-BPU/resolve/main/SmolVLM2-256M-Video-Instruct-Q8_0.gguf)
 
-## Running on X5 Ubuntu System
+### Running on X5 Ubuntu System
 
 Running method 1, use the executable file to start:
 ```shell
@@ -264,7 +264,7 @@ export CAM_TYPE=mipi
 ros2 launch hobot_llamacpp llama_vlm.launch.py llamacpp_model_type:=1 llamacpp_vit_model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_MLP_C1_UP_X5.bin llamacpp_gguf_model_file_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf audio_device:="plughw:1,0"
 ```
 
-## Run on X5 yocto system
+### Run on X5 yocto system
 
 ```shell
 export ROS_LOG_DIR=/userdata/
@@ -280,10 +280,37 @@ cp -r install/lib/hobot_llamacpp/config/ .
 ros2 topic pub --once /prompt_text std_msgs/msg/String "{data: 'Describe the image in one sentence.'}"
 ```
 
+### Running on S100 Ubuntu System
+
+Running method 1, use the executable file to start:
+```shell
+source ./install/setup.bash
+export COLCON_CURRENT_PREFIX=./install
+cp -r install/lib/hobot_llamacpp/config/ .
+
+# Run mode 1: Use local JPG format image, input user prompt.
+ros2 run hobot_llamacpp hobot_llamacpp --ros-args -p feed_type:=0 -p model_type:=1 -p image:=config/image2.jpg -p image_type:=0 -p user_prompt:="Describe the image in one sentence." -p model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm -p llm_model_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf
+
+# Run mode 2: Use the subscribed image msg (topic name: /image) for prediction, set the log level to warn. At the same time, publish a string topic (with the topic name /prompt_text) in another window to update the user prompt.
+ros2 run hobot_llamacpp hobot_llamacpp --ros-args -p feed_type:=1 -p model_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/prompt_text" -p model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm -p llm_model_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf
+
+ros2 topic pub --once /prompt_text std_msgs/msg/String "{data: 'Describe the image in one sentence.'}"
+```
+
+Running method 2 using a launch file:
+```shell
+export COLCON_CURRENT_PREFIX=./install
+source ./install/setup.bash
+
+# Configure MIPI camera
+export CAM_TYPE=mipi
+
+ros2 launch hobot_llamacpp llama_vlm.launch.py llamacpp_model_type:=1 llamacpp_vit_model_file_name:=SigLip_int16_SmolVLM2_256M_Instruct_S100.hbm llamacpp_gguf_model_file_name:=SmolVLM2-256M-Video-Instruct-Q8_0.gguf audio_device:="plughw:1,0"
+```
+
 ## LLM
 
-
-## Running on RDK Ubuntu System
+### Running on RDK Ubuntu System
 
 Running method 1, use the executable file to start:
 ```shell
