@@ -19,7 +19,6 @@
 #include <random>
 
 #include "rclcpp/rclcpp.hpp"
-#include "cv_bridge/cv_bridge.h"
 #include "dnn_node/dnn_node.h"
 
 #include "include/image_utils.h"
