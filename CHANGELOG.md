@@ -1,5 +1,9 @@
 # Changelog for package hobot_dosod
 
+tros_0.5.0 (2026-07-31)
+------------------
+1. 适配 ROS2 jazzy。
+
 tros_0.4.0 (2025-07-25)
 ------------------
 1. 新增 RDK S100 适配 smolvlm2 模型。
